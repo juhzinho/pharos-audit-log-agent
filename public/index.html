@@ -390,7 +390,8 @@
         digestThenWin: "7 days ago",
         metricEvents: "Events", metricSwaps: "Swaps", metricIn: "In", metricOut: "Out",
         netTitle: "Net this sample",
-        venues: { faroswap: "Faroswap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
+        venues: { faroswap: "FaroSwap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
+        sev: { high: "high", info: "info" },
         fChain: "Chain MCP", fRead: "Read-only",
         tileTitle: "Audit-Log Agent",
         tileBlurb: "Full date-range audit plus a written reading: net flow, counterparties, repeated swaps, open approvals.",
@@ -457,7 +458,8 @@
         digestThenWin: "Há 7 dias",
         metricEvents: "Eventos", metricSwaps: "Swaps", metricIn: "Entradas", metricOut: "Saídas",
         netTitle: "Líquido nesta amostra",
-        venues: { faroswap: "Faroswap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
+        venues: { faroswap: "FaroSwap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
+        sev: { high: "alta", info: "info" },
         fChain: "Chain MCP", fRead: "Só leitura",
         tileTitle: "Agente de auditoria",
         tileBlurb: "Auditoria do intervalo inteiro e uma leitura escrita: fluxo líquido, contrapartes, swaps repetidos, aprovações abertas.",
@@ -657,12 +659,17 @@
       if (brief) {
         $("stance").textContent = brief.stanceLabel?.[lang] || brief.stance || "";
         $("briefText").innerHTML = (brief.paragraphs?.[lang] || []).map((p) => `<p>${escapeHtml(p)}</p>`).join("");
-        $("findings").innerHTML = (brief.findings || []).map((f) => `<div class="finding"><span class="sev ${escapeHtml(f.severity)}">${escapeHtml(f.severity)}</span><span>${escapeHtml(f[lang] || f.en)}</span></div>`).join("");
+        $("findings").innerHTML = (brief.findings || []).map((f) => `<div class="finding"><span class="sev ${escapeHtml(f.severity)}">${escapeHtml(t.sev?.[f.severity] || f.severity)}</span><span>${escapeHtml(f[lang] || f.en)}</span></div>`).join("");
         const holds = (data.context?.balances || []).filter((b) => {
           try { return BigInt(b.raw ?? 0) > 0n; } catch { return b.amount && b.amount !== "0"; }
-        }).map((b) => `<span class="pill">${escapeHtml(b.amount)} ${escapeHtml(b.symbol)}</span>`).join("");
-        const nativeZero = data.context?.nativeRaw != null && BigInt(data.context.nativeRaw) === 0n;
-        const pros = data.context?.native && !nativeZero ? `<span class="pill">${escapeHtml(data.context.native)} PROS</span>` : "";
+        }).map((b) => {
+          const amt = b.raw != null ? formatAmount(b.raw, b.decimals ?? 18, 4) : b.amount;
+          return `<span class="pill">${escapeHtml(amt)} ${escapeHtml(b.symbol)}</span>`;
+        }).join("");
+        const nativeRaw = data.context?.nativeRaw;
+        const pros = nativeRaw != null && BigInt(nativeRaw) > 0n
+          ? `<span class="pill">${escapeHtml(formatAmount(nativeRaw, 18, 4))} PROS</span>`
+          : "";
         $("holdings").innerHTML = holds || pros ? `<span class="note">${escapeHtml(t.holds)}</span>${pros}${holds}` : "";
       }
       const parties = brief?.counterparties || [];
