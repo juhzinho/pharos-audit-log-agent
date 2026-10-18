@@ -235,23 +235,31 @@
         <input class="mono" id="digestWallet" autocomplete="off" spellcheck="false" value="0x912c9aDe24D44d8922f0866D8Dcb079f1363f647" />
         <div class="actions">
           <button class="btn" id="digestGo" type="submit" data-i18n="digestBtn"></button>
+          <button class="btn line" id="digestStop" type="button" hidden data-i18n="stop"></button>
         </div>
       </form>
       <p class="status" id="digestStatus"></p>
+      <div class="bar" id="digestBar" hidden><span id="digestBarFill"></span></div>
     </section>
     <section class="card" data-panel="digest" id="digestOut" hidden>
       <h2 data-i18n="digestReport"></h2>
       <p id="digestStory" class="brief"></p>
       <div class="stats" id="digestMetrics"></div>
+      <p class="note" id="digestNet"></p>
+      <p class="note" id="digestWindows"></p>
       <p class="note" id="digestNote"></p>
+      <p class="note" id="digestVenues"></p>
+      <div class="stats" id="digestHold"></div>
       <div class="row">
         <div>
           <h2 data-i18n="inTitle"></h2>
           <div id="digestIn"></div>
+          <p class="note" id="digestInThen"></p>
         </div>
         <div>
           <h2 data-i18n="outTitle"></h2>
           <div id="digestOutMoney"></div>
+          <p class="note" id="digestOutThen"></p>
         </div>
       </div>
     </section>
@@ -314,15 +322,22 @@
         title: "Pharos Ledger",
         lead: "Two read-only tools on Pacific. Pick a card.",
         digestTitle: "Weekly digest",
-        digestLead: "This week’s latest activity vs the same window 7 days ago. Published page, not a chat bot.",
+        digestLead: "Last ~12 hours vs the same hours from 7 days ago. Public page, not a chat bot.",
         digestTileTitle: "Weekly digest",
-        digestTileBlurb: "Now vs last week. Top 3 moves. Monday cron.",
-        digestForm: "Publish this week",
+        digestTileBlurb: "Now vs 7 days ago. Top 3. Monday cron.",
+        digestForm: "Compare samples",
         digestBtn: "Load digest",
-        digestBusy: "Comparing this week with last week…",
-        digestReport: "This week vs last week",
+        digestBusy: "Finding the block windows…",
+        digestTimeout: "That slice timed out. Loading again…",
+        digestScan: (done, total, events) => `Newest first · ${done} / ${total} blocks · ${events} events`,
+        digestReport: "Last 12 hours vs 7 days ago",
         digestTop: "Top 3",
+        digestThen: "7 days ago",
+        digestNowWin: "Now",
+        digestThenWin: "7 days ago",
         metricEvents: "Events", metricSwaps: "Swaps", metricIn: "In", metricOut: "Out",
+        netTitle: "Net this sample",
+        venues: { faroswap: "Faroswap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
         fChain: "Chain MCP", fRead: "Read-only",
         tileTitle: "Audit-Log Agent",
         tileBlurb: "Full date-range audit plus a written reading: net flow, counterparties, repeated swaps, open approvals.",
@@ -361,17 +376,24 @@
       },
       pt: {
         title: "Pharos Ledger",
-        lead: "Duas ferramentas só-leitura na Pacific. Escolhe um card.",
+        lead: "Duas ferramentas só leitura na Pacific. Escolha um card.",
         digestTitle: "Digest semanal",
-        digestLead: "A atividade recente desta semana contra a mesma janela de 7 dias atrás. Página publicada, não um bot de chat.",
+        digestLead: "Últimas ~12 horas contra as mesmas horas de 7 dias atrás. Página pública, não um bot de chat.",
         digestTileTitle: "Digest semanal",
-        digestTileBlurb: "Agora vs semana passada. Top 3. Cron na segunda.",
-        digestForm: "Publicar a semana",
+        digestTileBlurb: "Agora vs 7 dias atrás. Top 3. Cron na segunda.",
+        digestForm: "Comparar amostras",
         digestBtn: "Carregar digest",
-        digestBusy: "Comparando esta semana com a passada…",
-        digestReport: "Esta semana vs a passada",
+        digestBusy: "Achando as janelas de blocos…",
+        digestTimeout: "Essa fatia estourou o tempo. Tentando de novo…",
+        digestScan: (done, total, events) => `Do mais recente · ${done} / ${total} blocos · ${events} eventos`,
+        digestReport: "Últimas 12 horas vs 7 dias atrás",
         digestTop: "Top 3",
+        digestThen: "há 7 dias",
+        digestNowWin: "Agora",
+        digestThenWin: "Há 7 dias",
         metricEvents: "Eventos", metricSwaps: "Swaps", metricIn: "Entradas", metricOut: "Saídas",
+        netTitle: "Líquido nesta amostra",
+        venues: { faroswap: "Faroswap", jumper: "Jumper", cctp: "CCTP", wrap: "WPROS" },
         fChain: "Chain MCP", fRead: "Só leitura",
         tileTitle: "Agente de auditoria",
         tileBlurb: "Auditoria do intervalo inteiro e uma leitura escrita: fluxo líquido, contrapartes, swaps repetidos, aprovações abertas.",
@@ -413,11 +435,24 @@
     const $ = (id) => document.getElementById(id);
     const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
     const shortHex = (v) => v ? `${v.slice(0, 6)}…${v.slice(-4)}` : "";
-    let lang = navigator.language?.startsWith("pt") ? "pt" : "en";
+    let lang = localStorage.getItem("pharos-lang") || (navigator.language?.startsWith("pt") ? "pt" : "en");
     let lastReport = null;
     let lastDigest = null;
     let scanGen = 0;
+    let digestGen = 0;
     let tab = "home";
+    const savedWallet = localStorage.getItem("pharos-wallet");
+    if (savedWallet) {
+      $("wallet").value = savedWallet;
+      $("digestWallet").value = savedWallet;
+    }
+    function rememberWallet(addr) {
+      const v = String(addr || "").trim();
+      if (!v) return;
+      localStorage.setItem("pharos-wallet", v);
+      $("wallet").value = v;
+      $("digestWallet").value = v;
+    }
 
     function iso(d) {
       return d.toISOString().slice(0, 10);
@@ -456,9 +491,39 @@
       if (tab === "digest" && !lastDigest) loadDigest();
     }
 
+    function formatAmount(raw, decimals = 18, maxFraction = 6) {
+      if (raw == null || raw === "") return "";
+      const group = lang === "en" ? "," : ".";
+      const decimal = lang === "en" ? "." : ",";
+      let x;
+      try { x = BigInt(raw); } catch { return String(raw); }
+      const sign = x < 0n ? "-" : "";
+      if (x < 0n) x = -x;
+      const dec = Number.isInteger(decimals) ? decimals : 18;
+      const base = 10n ** BigInt(dec);
+      const ip = (x / base).toString();
+      const fp = (x % base).toString().padStart(dec, "0");
+      const grouped = ip.replace(/\B(?=(\d{3})+(?!\d))/g, group);
+      const fraction = fp.slice(0, maxFraction).replace(/0+$/, "");
+      if (!fraction && /[1-9]/.test(fp) && ip === "0") {
+        return `${sign}< 0${decimal}${"0".repeat(Math.max(maxFraction - 1, 0))}1`;
+      }
+      return sign + grouped + (fraction ? `${decimal}${fraction}` : "");
+    }
+
     function detail(row) {
-      const legs = (row.legs || []).map((l) => `${I18N[lang].cats[l.direction] || l.direction} ${l.amount} ${l.symbol}`).join(" · ");
-      const appr = (row.approvals || []).map((a) => `${a.symbol} → ${shortHex(a.spender)} (${a.amount})`).join(" · ");
+      const legs = (row.legs || []).map((l) => {
+        const amt = l.raw != null ? formatAmount(l.raw, l.decimals, 4) : (l[lang] || l.amount);
+        const other = l.direction === "in" ? (l.fromLabel || "") : l.direction === "out" ? (l.toLabel || "") : "";
+        const extra = other && !/USDC|USDCe|WPROS|LINK|WETH/i.test(other) ? ` · ${other}` : "";
+        return `${I18N[lang].cats[l.direction] || l.direction} ${amt} ${l.symbol}${extra}`;
+      }).join(" · ");
+      const appr = (row.approvals || []).map((a) => {
+        const amt = a.raw != null && !/^unlimited|ilimitada$/i.test(String(a.amount))
+          ? formatAmount(a.raw, a.decimals, 4)
+          : (lang === "pt" && String(a.amount) === "unlimited" ? "ilimitada" : lang === "en" && String(a.amount) === "ilimitada" ? "unlimited" : a.amount);
+        return `${a.symbol} → ${shortHex(a.spender)} (${amt})`;
+      }).join(" · ");
       return [legs, appr].filter(Boolean).join(" · ");
     }
 
@@ -475,7 +540,33 @@
     function moneyList(rows) {
       const t = I18N[lang];
       if (!rows?.length) return `<span class="note">${t.none}</span>`;
-      return `<div class="stats">${rows.map((r) => `<span class="pill">${escapeHtml(r.amount)} ${escapeHtml(r.symbol)}</span>`).join("")}</div>`;
+      return `<div class="stats">${rows.map((r) => {
+        const amt = r.raw != null ? formatAmount(r.raw, r.decimals ?? 18, 4) : (r[lang] || r.amount);
+        return `<span class="pill">${escapeHtml(amt)} ${escapeHtml(r.symbol)}</span>`;
+      }).join("")}</div>`;
+    }
+
+    function moneyThenLine(rows) {
+      const t = I18N[lang];
+      if (!rows?.length) return `${t.digestThen}: ${t.none}`;
+      return `${t.digestThen}: ` + rows.map((r) => {
+        const amt = r.raw != null ? formatAmount(r.raw, r.decimals ?? 18, 4) : (r[lang] || r.amount);
+        return `${amt} ${r.symbol}`;
+      }).join(" · ");
+    }
+
+    function windowLine(data) {
+      const t = I18N[lang];
+      const loc = lang === "pt" ? "pt-BR" : "en-US";
+      const fmt = (n) => Number(n).toLocaleString(loc);
+      const cur = data.windows?.current || data.current || {};
+      const prev = data.windows?.previous || data.previous || {};
+      const one = (label, w) => {
+        const blocks = w.fromBlock != null ? `${fmt(w.fromBlock)}–${fmt(w.toBlock)}` : "";
+        const when = [w.fromTime, w.toTime].filter(Boolean).join(" → ");
+        return `${label}: ${blocks}${when ? ` · ${when}` : ""}`;
+      };
+      return [one(t.digestNowWin, cur), one(t.digestThenWin, prev)].filter(Boolean).join("  |  ");
     }
 
     function render(data) {
@@ -487,8 +578,11 @@
         $("stance").textContent = brief.stanceLabel?.[lang] || brief.stance || "";
         $("briefText").innerHTML = (brief.paragraphs?.[lang] || []).map((p) => `<p>${escapeHtml(p)}</p>`).join("");
         $("findings").innerHTML = (brief.findings || []).map((f) => `<div class="finding"><span class="sev ${escapeHtml(f.severity)}">${escapeHtml(f.severity)}</span><span>${escapeHtml(f[lang] || f.en)}</span></div>`).join("");
-        const holds = (data.context?.balances || []).map((b) => `<span class="pill">${escapeHtml(b.amount)} ${escapeHtml(b.symbol)}</span>`).join("");
-        const pros = data.context?.native ? `<span class="pill">${escapeHtml(data.context.native)} PROS</span>` : "";
+        const holds = (data.context?.balances || []).filter((b) => {
+          try { return BigInt(b.raw ?? 0) > 0n; } catch { return b.amount && b.amount !== "0"; }
+        }).map((b) => `<span class="pill">${escapeHtml(b.amount)} ${escapeHtml(b.symbol)}</span>`).join("");
+        const nativeZero = data.context?.nativeRaw != null && BigInt(data.context.nativeRaw) === 0n;
+        const pros = data.context?.native && !nativeZero ? `<span class="pill">${escapeHtml(data.context.native)} PROS</span>` : "";
         $("holdings").innerHTML = holds || pros ? `<span class="note">${escapeHtml(t.holds)}</span>${pros}${holds}` : "";
       }
       const parties = brief?.counterparties || [];
@@ -523,12 +617,12 @@
       for (let i = 0; i < tries; i++) {
         const res = await fetch(url);
         const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-        if (res.status === 503 && i < tries - 1) {
-          last = data.error || last;
-          await new Promise((r) => setTimeout(r, 4000 * (i + 1)));
+        if ((res.status === 504 || res.status === 502 || res.status === 503) && i < tries - 1) {
+          last = data.error || I18N[lang].digestTimeout || last;
+          await new Promise((r) => setTimeout(r, 3000 * (i + 1)));
           continue;
         }
-        if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (!data.ok) throw new Error(data.error || (res.status === 504 ? I18N[lang].digestTimeout : `HTTP ${res.status}`));
         return data;
       }
       throw new Error(last);
@@ -545,6 +639,7 @@
       e?.preventDefault();
       const gen = ++scanGen;
       const wallet = $("wallet").value.trim();
+      rememberWallet(wallet);
       const q = new URLSearchParams({ step: "prepare", wallet, lang });
       if ($("span").value === "custom") {
         if ($("from").value) q.set("from", $("from").value);
@@ -630,16 +725,38 @@
       lastDigest = data;
       $("digestOut").hidden = false;
       $("digestStory").textContent = data.story?.[lang] || data.story?.en || "";
-      $("digestNote").textContent = data.note || "";
+      $("digestNote").textContent = data.notes?.[lang] || data.note || "";
+      $("digestWindows").textContent = windowLine(data);
       const labels = { events: t.metricEvents, swaps: t.metricSwaps, in: t.metricIn, out: t.metricOut };
       $("digestMetrics").innerHTML = (data.metrics || []).map((m) => {
         const cls = m.change == null || m.change > 0 ? "up" : m.change < 0 ? "down" : "flat";
-        return `<span class="pill">${escapeHtml(labels[m.id] || m.id)} ${m.now} <span class="delta ${cls}">${changeLabel(m.change)}</span></span>`;
+        return `<span class="pill">${escapeHtml(labels[m.id] || m.id)} ${m.now} vs ${m.then} <span class="delta ${cls}">${changeLabel(m.change)}</span></span>`;
       }).join("");
       $("digestIn").innerHTML = moneyList(data.incoming);
       $("digestOutMoney").innerHTML = moneyList(data.outgoing);
+      $("digestInThen").textContent = moneyThenLine(data.incomingThen);
+      $("digestOutThen").textContent = moneyThenLine(data.outgoingThen);
       $("digestTopCard").hidden = !(data.top || []).length;
-      $("digestTop").innerHTML = (data.top || []).map((n) => rowHtml(n, `${detail(n)} — ${t.why[n.why] || n.why}`)).join("");
+      $("digestNet").textContent = (data.net || []).length
+        ? `${t.netTitle}: ${data.net.map((r) => `${r[lang] || r.amount} ${r.symbol}`).join(" · ")}`
+        : "";
+      $("digestVenues").textContent = "";
+      const holds = (data.holdings?.balances || []).filter((b) => {
+        try { return BigInt(b.raw ?? 0) > 0n; } catch { return false; }
+      });
+      const nativeRaw = data.holdings?.nativeRaw;
+      const native = nativeRaw != null && BigInt(nativeRaw) > 0n ? formatAmount(nativeRaw, 18, 4) : "";
+      $("digestHold").innerHTML = (native || holds.length)
+        ? `<span class="note">${escapeHtml(t.holds)}</span>${native ? `<span class="pill">${escapeHtml(native)} PROS</span>` : ""}${holds.map((b) => {
+          const amt = b.raw != null ? formatAmount(b.raw, b.decimals ?? 18, 4) : b.amount;
+          return `<span class="pill">${escapeHtml(amt)} ${escapeHtml(b.symbol)}</span>`;
+        }).join("")}`
+        : "";
+      $("digestTop").innerHTML = (data.top || []).map((n) => {
+        const d = detail(n);
+        const via = n.via && !d.includes(n.via) ? ` · ${n.via}` : "";
+        return rowHtml(n, `${d} — ${t.why[n.why] || n.why}${via}`);
+      }).join("");
       const ms = data.ms != null ? ` · ${(data.ms / 1000).toFixed(1)}s` : "";
       $("digestMeta").textContent = `${data.calls || "Chain MCP"}${ms}`;
       $("digestStatus").textContent = "";
@@ -647,19 +764,82 @@
 
     async function loadDigest(e) {
       e?.preventDefault();
+      const gen = ++digestGen;
       const wallet = $("digestWallet").value.trim();
+      rememberWallet(wallet);
       $("digestGo").disabled = true;
+      $("digestStop").hidden = false;
       $("digestStatus").className = "status";
       $("digestStatus").textContent = I18N[lang].digestBusy;
+      $("digestBar").hidden = false;
+      $("digestBarFill").style.width = "0%";
+      const loc = lang === "pt" ? "pt-BR" : "en-US";
+      const started = Date.now();
       try {
-        const data = await getJson(`/api/digest?${new URLSearchParams({ wallet, lang })}`);
+        const prepared = await getJson(`/api/digest?${new URLSearchParams({ step: "prepare", wallet, lang })}`);
+        if (gen !== digestGen) return;
+        const ranges = [prepared.windows.current, prepared.windows.previous];
+        const slices = [];
+        for (const w of ranges) {
+          for (let start = w.fromBlock; start <= w.toBlock; start += prepared.chunk) {
+            slices.push([start, Math.min(start + prepared.chunk - 1, w.toBlock), w === prepared.windows.current ? "now" : "then"]);
+          }
+        }
+        slices.reverse();
+        const span = Math.max(1, slices.reduce((n, [a, b]) => n + (b - a + 1), 0));
+        const currentItems = [];
+        const previousItems = [];
+        let covered = 0;
+        let next = 0;
+        $("digestStatus").textContent = I18N[lang].digestScan("0", span.toLocaleString(loc), 0);
+        async function pull() {
+          while (next < slices.length) {
+            if (gen !== digestGen) return;
+            const [start, end, which] = slices[next++];
+            const slice = await getJson(`/api/digest?${new URLSearchParams({ step: "slice", wallet: prepared.wallet, fromBlock: String(start), toBlock: String(end), lang })}`);
+            if (gen !== digestGen) return;
+            const bag = which === "now" ? currentItems : previousItems;
+            bag.push(...(slice.items || []));
+            covered += end - start + 1;
+            $("digestBarFill").style.width = `${Math.min(100, Math.round((covered / span) * 100))}%`;
+            $("digestStatus").textContent = I18N[lang].digestScan(covered.toLocaleString(loc), span.toLocaleString(loc), currentItems.length + previousItems.length);
+          }
+        }
+        await Promise.all([pull(), pull()]);
+        if (gen !== digestGen) return;
+        const res = await fetch("/api/digest", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            wallet: prepared.wallet,
+            windows: prepared.windows,
+            currentItems,
+            previousItems,
+            context: lang === "pt" ? prepared.contextPt : prepared.context,
+            lang,
+            days: prepared.days,
+            headBlock: prepared.headBlock,
+            blockSeconds: prepared.blockSeconds,
+          }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        if (gen !== digestGen) return;
+        data.ms = Date.now() - started;
+        data.calls = data.calls || "Chain MCP";
+        $("digestBarFill").style.width = "100%";
         renderDigest(data);
         history.replaceState(null, "", `#digest`);
       } catch (err) {
+        if (gen !== digestGen) return;
         $("digestStatus").className = "status err";
         $("digestStatus").textContent = err.message;
       } finally {
-        $("digestGo").disabled = false;
+        if (gen === digestGen) {
+          $("digestGo").disabled = false;
+          $("digestStop").hidden = true;
+          $("digestBar").hidden = true;
+        }
       }
     }
 
@@ -685,7 +865,11 @@
       localStorage.setItem("pharos-theme", b.dataset.theme);
       paintTheme();
     }));
-    document.querySelectorAll(".lang button[data-lang]").forEach((b) => b.addEventListener("click", () => { lang = b.dataset.lang; applyText(); }));
+    document.querySelectorAll(".lang button[data-lang]").forEach((b) => b.addEventListener("click", () => {
+      lang = b.dataset.lang;
+      localStorage.setItem("pharos-lang", lang);
+      applyText();
+    }));
     $("span").onchange = () => { $("dates").hidden = $("span").value !== "custom"; };
     $("stop").onclick = () => {
       scanGen++;
@@ -693,6 +877,14 @@
       $("stop").hidden = true;
       $("status").className = "status";
       $("status").textContent = I18N[lang].stopped;
+    };
+    $("digestStop").onclick = () => {
+      digestGen++;
+      $("digestGo").disabled = false;
+      $("digestStop").hidden = true;
+      $("digestBar").hidden = true;
+      $("digestStatus").className = "status";
+      $("digestStatus").textContent = I18N[lang].stopped;
     };
     $("form").onsubmit = run;
     $("digestForm").onsubmit = loadDigest;
