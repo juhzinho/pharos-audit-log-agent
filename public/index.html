@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pharos Audit-Log Agent</title>
-  <meta name="description" content="Audit-Log Agent for Pharos Pacific Mainnet. Wallet activity by date range: in, out, swaps, approvals. Chain MCP. Read-only." />
+  <title>Pharos Ledger</title>
+  <meta name="description" content="Audit log and weekly digest for Pharos Pacific. Chain MCP. Read-only." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -50,6 +50,13 @@
     .brand .word { display: flex; align-items: baseline; gap: 8px; }
     .brand b { font-size: 14px; letter-spacing: .12em; font-weight: 800; }
     .brand em { font-style: normal; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .1em; }
+    nav.tabs { display: flex; flex: 1; gap: 6px; justify-content: center; }
+    nav.tabs a {
+      display: inline-flex; padding: 8px 14px; border-radius: 999px; color: var(--ink); text-decoration: none;
+      font-size: 13px; font-weight: 600; border: 1px solid var(--line-2); background: var(--surface);
+    }
+    nav.tabs a.on { color: var(--chip-ink); background: var(--chip); border-color: var(--chip); }
+    .delta.up { color: var(--ok); } .delta.down { color: var(--warn); } .delta.flat { color: var(--muted); }
     .tools { display: flex; gap: 8px; margin-left: auto; align-items: center; }
     .lang { display: flex; }
     .lang button {
@@ -146,13 +153,17 @@
 </head>
 <body>
   <header class="top">
-    <a class="brand" href="#audit">
+    <a class="brand" href="#home">
       <svg class="logo" viewBox="0 0 34 34" fill="none" aria-hidden="true">
         <rect width="34" height="34" rx="8" fill="#0033ff"/>
         <path d="M10 24V11.2h8.4c2.7 0 4.4 1.6 4.4 4 0 1.7-.9 3-2.4 3.6L23.4 24h-3.2l-2.7-5H13.2V24H10zm3.2-7.8h5c1.2 0 1.9-.6 1.9-1.5s-.7-1.5-1.9-1.5h-5v3z" fill="#fff"/>
       </svg>
-      <span class="word"><b>PHAROS</b><em>AGENT ARENA</em></span>
+      <span class="word"><b>PHAROS</b><em>LEDGER</em></span>
     </a>
+    <nav class="tabs">
+      <a href="#audit" data-tab="audit">Audit</a>
+      <a href="#digest" data-tab="digest">Digest</a>
+    </nav>
     <div class="tools">
       <div class="lang" id="theme"><button type="button" data-theme="light"></button><button type="button" data-theme="dark"></button></div>
       <div class="lang"><button data-lang="en">EN</button><button data-lang="pt">PT</button></div>
@@ -171,16 +182,22 @@
       <span class="filter" data-i18n="fRead"></span>
       <span class="filter">1672</span>
     </div>
-    <div class="board">
-      <a class="tile on" href="#audit">
+    <div class="board" data-panel="home">
+      <a class="tile" href="#audit">
         <div class="tile-top"><span class="cat"><i></i>Chain MCP</span><span class="cat">07</span></div>
         <h3 id="tileTitle"></h3>
         <p id="tileBlurb"></p>
         <div class="tile-foot"><span></span><b id="tileOpen"></b></div>
       </a>
+      <a class="tile" href="#digest">
+        <div class="tile-top"><span class="cat"><i></i>Chain MCP</span><span class="cat">08</span></div>
+        <h3 id="digestTileTitle"></h3>
+        <p id="digestTileBlurb"></p>
+        <div class="tile-foot"><span></span><b id="digestTileOpen"></b></div>
+      </a>
     </div>
 
-    <section class="card" id="audit">
+    <section class="card" data-panel="audit" id="audit">
       <h2 data-i18n="formTitle"></h2>
       <form id="form">
         <label for="wallet" data-i18n="walletLabel"></label>
@@ -211,7 +228,40 @@
       <div class="bar" id="bar" hidden><span id="barFill"></span></div>
     </section>
 
-    <section class="card" id="briefCard" hidden>
+    <section class="card" data-panel="digest">
+      <h2 data-i18n="digestForm"></h2>
+      <form id="digestForm">
+        <label for="digestWallet" data-i18n="walletLabel"></label>
+        <input class="mono" id="digestWallet" autocomplete="off" spellcheck="false" value="0x912c9aDe24D44d8922f0866D8Dcb079f1363f647" />
+        <div class="actions">
+          <button class="btn" id="digestGo" type="submit" data-i18n="digestBtn"></button>
+        </div>
+      </form>
+      <p class="status" id="digestStatus"></p>
+    </section>
+    <section class="card" data-panel="digest" id="digestOut" hidden>
+      <h2 data-i18n="digestReport"></h2>
+      <p id="digestStory" class="brief"></p>
+      <div class="stats" id="digestMetrics"></div>
+      <p class="note" id="digestNote"></p>
+      <div class="row">
+        <div>
+          <h2 data-i18n="inTitle"></h2>
+          <div id="digestIn"></div>
+        </div>
+        <div>
+          <h2 data-i18n="outTitle"></h2>
+          <div id="digestOutMoney"></div>
+        </div>
+      </div>
+    </section>
+    <section class="card" data-panel="digest" id="digestTopCard" hidden>
+      <h2 data-i18n="digestTop"></h2>
+      <div class="scroll"><table><thead><tr id="digestHead"></tr></thead><tbody id="digestTop"></tbody></table></div>
+      <p class="note" id="digestMeta"></p>
+    </section>
+
+    <section class="card" data-panel="audit" id="briefCard" hidden>
       <h2 data-i18n="briefTitle"></h2>
       <p><span class="stance" id="stance"></span></p>
       <div class="brief" id="briefText"></div>
@@ -219,12 +269,12 @@
       <div class="stats" id="holdings"></div>
     </section>
 
-    <section class="card" id="partyCard" hidden>
+    <section class="card" data-panel="audit" id="partyCard" hidden>
       <h2 data-i18n="partyTitle"></h2>
       <div class="scroll"><table><thead><tr id="head0"></tr></thead><tbody id="parties"></tbody></table></div>
     </section>
 
-    <section class="card" id="out" hidden>
+    <section class="card" data-panel="audit" id="out" hidden>
       <h2 data-i18n="reportTitle"></h2>
       <p id="walletLine"></p>
       <div class="stats" id="counts"></div>
@@ -246,12 +296,12 @@
       </div>
     </section>
 
-    <section class="card" id="notableCard" hidden>
+    <section class="card" data-panel="audit" id="notableCard" hidden>
       <h2 data-i18n="notableTitle"></h2>
       <div class="scroll"><table><thead><tr id="head1"></tr></thead><tbody id="notable"></tbody></table></div>
     </section>
 
-    <section class="card" id="itemsCard" hidden>
+    <section class="card" data-panel="audit" id="itemsCard" hidden>
       <h2 data-i18n="itemsTitle"></h2>
       <div class="scroll"><table><thead><tr id="head2"></tr></thead><tbody id="items"></tbody></table></div>
       <p class="meta note" id="meta"></p>
@@ -261,8 +311,18 @@
   <script>
     const I18N = {
       en: {
-        title: "Audit-Log Agent",
-        lead: "The whole date range, then a reading of what the wallet did: net flow, who it traded with, and approvals still open. Nothing is sent.",
+        title: "Pharos Ledger",
+        lead: "Two read-only tools on Pacific. Pick a card.",
+        digestTitle: "Weekly digest",
+        digestLead: "This week’s latest activity vs the same window 7 days ago. Published page, not a chat bot.",
+        digestTileTitle: "Weekly digest",
+        digestTileBlurb: "Now vs last week. Top 3 moves. Monday cron.",
+        digestForm: "Publish this week",
+        digestBtn: "Load digest",
+        digestBusy: "Comparing this week with last week…",
+        digestReport: "This week vs last week",
+        digestTop: "Top 3",
+        metricEvents: "Events", metricSwaps: "Swaps", metricIn: "In", metricOut: "Out",
         fChain: "Chain MCP", fRead: "Read-only",
         tileTitle: "Audit-Log Agent",
         tileBlurb: "Full date-range audit plus a written reading: net flow, counterparties, repeated swaps, open approvals.",
@@ -300,8 +360,18 @@
         foot: `Pacific Mainnet (1672) · <a href="https://mcp.pharos.xyz/mcp">Chain MCP</a> · Read-only: no wallet or private key. · <a href="https://pharos-agent-arena.vercel.app/">Agent Arena</a>`,
       },
       pt: {
-        title: "Agente de auditoria",
-        lead: "O intervalo de datas inteiro, e depois uma leitura do que a carteira fez: fluxo líquido, com quem negociou, e aprovações ainda abertas. Nada é enviado.",
+        title: "Pharos Ledger",
+        lead: "Duas ferramentas só-leitura na Pacific. Escolhe um card.",
+        digestTitle: "Digest semanal",
+        digestLead: "A atividade recente desta semana contra a mesma janela de 7 dias atrás. Página publicada, não um bot de chat.",
+        digestTileTitle: "Digest semanal",
+        digestTileBlurb: "Agora vs semana passada. Top 3. Cron na segunda.",
+        digestForm: "Publicar a semana",
+        digestBtn: "Carregar digest",
+        digestBusy: "Comparando esta semana com a passada…",
+        digestReport: "Esta semana vs a passada",
+        digestTop: "Top 3",
+        metricEvents: "Eventos", metricSwaps: "Swaps", metricIn: "Entradas", metricOut: "Saídas",
         fChain: "Chain MCP", fRead: "Só leitura",
         tileTitle: "Agente de auditoria",
         tileBlurb: "Auditoria do intervalo inteiro e uma leitura escrita: fluxo líquido, contrapartes, swaps repetidos, aprovações abertas.",
@@ -345,7 +415,9 @@
     const shortHex = (v) => v ? `${v.slice(0, 6)}…${v.slice(-4)}` : "";
     let lang = navigator.language?.startsWith("pt") ? "pt" : "en";
     let lastReport = null;
+    let lastDigest = null;
     let scanGen = 0;
+    let tab = "home";
 
     function iso(d) {
       return d.toISOString().slice(0, 10);
@@ -357,16 +429,31 @@
       document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t[el.dataset.i18n] || ""));
       document.querySelectorAll(".lang button[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === lang));
       paintTheme();
-      $("title").textContent = t.title;
-      $("lead").textContent = t.lead;
+      $("title").textContent = tab === "digest" ? t.digestTitle : t.title;
+      $("lead").textContent = tab === "digest" ? t.digestLead : t.lead;
       $("tileTitle").textContent = t.tileTitle;
       $("tileBlurb").textContent = t.tileBlurb;
       $("tileOpen").textContent = t.tileOpen;
+      $("digestTileTitle").textContent = t.digestTileTitle;
+      $("digestTileBlurb").textContent = t.digestTileBlurb;
+      $("digestTileOpen").textContent = t.tileOpen;
       $("foot").innerHTML = t.foot;
       $("head0").innerHTML = t.partyCols.map((c) => `<th>${c}</th>`).join("");
       $("head1").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
       $("head2").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
-      if (lastReport) render(lastReport);
+      $("digestHead").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
+      if (lastReport && tab === "audit") render(lastReport);
+      if (lastDigest && tab === "digest") renderDigest(lastDigest);
+    }
+
+    function showTab(name) {
+      tab = name === "digest" ? "digest" : name === "audit" ? "audit" : "home";
+      document.querySelectorAll("[data-panel]").forEach((el) => {
+        el.hidden = el.dataset.panel !== tab;
+      });
+      document.querySelectorAll("nav.tabs a").forEach((a) => a.classList.toggle("on", a.dataset.tab === tab));
+      applyText();
+      if (tab === "digest" && !lastDigest) loadDigest();
     }
 
     function detail(row) {
@@ -532,6 +619,50 @@
       }
     }
 
+    function changeLabel(n) {
+      if (n == null) return lang === "pt" ? "novo" : "new";
+      if (n === 0) return "0%";
+      return `${n > 0 ? "+" : ""}${n}%`;
+    }
+
+    function renderDigest(data) {
+      const t = I18N[lang];
+      lastDigest = data;
+      $("digestOut").hidden = false;
+      $("digestStory").textContent = data.story?.[lang] || data.story?.en || "";
+      $("digestNote").textContent = data.note || "";
+      const labels = { events: t.metricEvents, swaps: t.metricSwaps, in: t.metricIn, out: t.metricOut };
+      $("digestMetrics").innerHTML = (data.metrics || []).map((m) => {
+        const cls = m.change == null || m.change > 0 ? "up" : m.change < 0 ? "down" : "flat";
+        return `<span class="pill">${escapeHtml(labels[m.id] || m.id)} ${m.now} <span class="delta ${cls}">${changeLabel(m.change)}</span></span>`;
+      }).join("");
+      $("digestIn").innerHTML = moneyList(data.incoming);
+      $("digestOutMoney").innerHTML = moneyList(data.outgoing);
+      $("digestTopCard").hidden = !(data.top || []).length;
+      $("digestTop").innerHTML = (data.top || []).map((n) => rowHtml(n, `${detail(n)} — ${t.why[n.why] || n.why}`)).join("");
+      const ms = data.ms != null ? ` · ${(data.ms / 1000).toFixed(1)}s` : "";
+      $("digestMeta").textContent = `${data.calls || "Chain MCP"}${ms}`;
+      $("digestStatus").textContent = "";
+    }
+
+    async function loadDigest(e) {
+      e?.preventDefault();
+      const wallet = $("digestWallet").value.trim();
+      $("digestGo").disabled = true;
+      $("digestStatus").className = "status";
+      $("digestStatus").textContent = I18N[lang].digestBusy;
+      try {
+        const data = await getJson(`/api/digest?${new URLSearchParams({ wallet, lang })}`);
+        renderDigest(data);
+        history.replaceState(null, "", `#digest`);
+      } catch (err) {
+        $("digestStatus").className = "status err";
+        $("digestStatus").textContent = err.message;
+      } finally {
+        $("digestGo").disabled = false;
+      }
+    }
+
     function download(format) {
       if (!lastReport) return;
       if (format === "md") saveFile("audit.md", lastReport.markdown || "", "text/markdown");
@@ -564,10 +695,12 @@
       $("status").textContent = I18N[lang].stopped;
     };
     $("form").onsubmit = run;
+    $("digestForm").onsubmit = loadDigest;
+    window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
     $("md").onclick = () => download("md");
     $("csv").onclick = () => download("csv");
     $("pdf").onclick = () => window.print();
-    applyText();
+    showTab(location.hash.slice(1) || "home");
   </script>
 </body>
 </html>
