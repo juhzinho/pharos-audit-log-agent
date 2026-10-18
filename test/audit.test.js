@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { blocksForRange, categorize, composeReport, guessBlock, hydrateItems, nextGuess, notableOf, parseDateRange, resolveWallet, toCsv, totalsOf, uniqueLogs } from "../lib/audit.js";
+import { blocksForRange, categorize, composeReport, guessBlock, hydrateItems, nextGuess, notableOf, parseDateRange, resolveWallet, timestampOf, toCsv, totalsOf, uniqueLogs } from "../lib/audit.js";
 import { buildBrief } from "../lib/audit-brief.js";
 import { PACIFIC } from "../lib/tokens.js";
 
@@ -13,6 +13,12 @@ test("resolves a wallet and rejects junk", () => {
   assert.equal(resolveWallet("0x123").error, "invalid");
   assert.equal(resolveWallet("").error, "empty");
   assert.equal(resolveWallet("not-an-address").error, "unknown");
+});
+
+test("reads hex block timestamps as unix seconds", () => {
+  assert.equal(timestampOf({ timestamp: "0x6ad41851" }), 0x6ad41851);
+  assert.equal(timestampOf({ timestamp: 1_792_284_753 }), 1_792_284_753);
+  assert.equal(timestampOf({}), null);
 });
 
 test("parses an inclusive UTC date range", () => {
