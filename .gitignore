@@ -1,3 +1,4 @@
 node_modules/
 .env
 .vercel
+scripts/scan-port-js.js
