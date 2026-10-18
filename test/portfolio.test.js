@@ -89,7 +89,8 @@ const lpSnap = {
 test("where USDC cites the token contract and block", () => {
   const got = answerPortfolio(snap, "where is my USDC?", "en");
   assert.match(got.text, /USDC/);
-  assert.match(got.text, /Harbor/);
+  assert.match(got.text, /block 20,000,000/);
+  assert.doesNotMatch(got.text, /Harbor catalog|pGAIN/);
   assert.equal(got.sources[0].block, 20_000_000);
   assert.equal(got.sources[0].contract, PACIFIC.USDC.address);
 });
@@ -114,7 +115,7 @@ test("Portuguese unknown stays unknown", () => {
 
 test("Portuguese holdings use bloco, not block", () => {
   const got = answerPortfolio(snap, "quanto eu tenho?", "pt");
-  assert.match(got.story.pt, /bloco/);
+  assert.match(got.story.pt, /bloco 20\.000\.000/);
   assert.doesNotMatch(got.story.pt, / block /);
 });
 
