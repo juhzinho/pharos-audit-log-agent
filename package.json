@@ -1,0 +1,18 @@
+{
+  "name": "pharos-arena-plus",
+  "version": "1.0.0",
+  "description": "Pharos Agent Arena Audit-Log Agent. Official Chain MCP. Read-only.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "audit": "node tasks/07-audit-log-agent/audit.js",
+    "web": "node scripts/dev-server.js",
+    "test": "node --test test/audit.test.js",
+    "test:unit": "node --test test/audit.test.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "viem": "^2.57.5"
+  }
+}
