@@ -1,15 +1,16 @@
 {
   "name": "pharos-arena-plus",
   "version": "1.0.0",
-  "description": "Pharos Ledger: audit log and weekly digest. Chain MCP. Read-only.",
+  "description": "Pharos Ledger: audit log, weekly digest, portfolio questions. Chain MCP. Read-only.",
   "type": "module",
   "private": true,
   "scripts": {
     "audit": "node tasks/07-audit-log-agent/audit.js",
     "digest": "node tasks/08-weekly-digest-agent/digest.js",
+    "portfolio": "node tasks/09-portfolio-assistant/agent.js",
     "web": "node scripts/dev-server.js",
-    "test": "node --test test/audit.test.js test/digest.test.js",
-    "test:unit": "node --test test/audit.test.js test/digest.test.js"
+    "test": "node --test test/audit.test.js test/digest.test.js test/portfolio.test.js",
+    "test:unit": "node --test test/audit.test.js test/digest.test.js test/portfolio.test.js"
   },
   "license": "MIT",
   "dependencies": {

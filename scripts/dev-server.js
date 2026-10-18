@@ -4,11 +4,12 @@ import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import audit from "../api/audit.js";
 import digest from "../api/digest.js";
+import portfolio from "../api/portfolio.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const ROOT = fileURLToPath(new URL("../public/", import.meta.url));
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
-const ROUTES = { "/api/audit": audit, "/api/digest": digest };
+const ROUTES = { "/api/audit": audit, "/api/digest": digest, "/api/portfolio": portfolio };
 
 http
   .createServer(async (req, res) => {

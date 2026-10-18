@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pharos Ledger</title>
-  <meta name="description" content="Audit log and weekly digest for Pharos Pacific. Chain MCP. Read-only." />
+  <meta name="description" content="Audit log, weekly digest and portfolio questions for Pharos Pacific. Chain MCP. Read-only." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -56,6 +56,7 @@
       font-size: 13px; font-weight: 600; border: 1px solid var(--line-2); background: var(--surface);
     }
     nav.tabs a.on { color: var(--chip-ink); background: var(--chip); border-color: var(--chip); }
+    button.filter { cursor: pointer; font: inherit; }
     .delta.up { color: var(--ok); } .delta.down { color: var(--warn); } .delta.flat { color: var(--muted); }
     .tools { display: flex; gap: 8px; margin-left: auto; align-items: center; }
     .lang { display: flex; }
@@ -124,6 +125,18 @@
     .addr { font-family: var(--mono); font-size: 12.5px; word-break: break-all; color: var(--ink); }
     .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
     .brief p { margin: 0 0 8px; }
+    .port-lines { display: flex; flex-direction: column; gap: 10px; margin: 0 0 18px; }
+    .port-line {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 16px;
+    }
+    .port-line .port-head { font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
+    .port-line .port-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--muted); font-size: 12.5px; }
+    .port-line .port-meta span { font-family: var(--mono); }
+    .port-line.soft { background: transparent; border-style: dashed; }
+    .port-line.soft .port-head { font-weight: 500; color: var(--muted); font-size: 13px; }
     .finding { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
     .sev { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; border-radius: 6px; padding: 2px 7px; text-transform: uppercase; }
     .sev.high { background: var(--warn-soft); color: var(--warn); }
@@ -163,6 +176,7 @@
     <nav class="tabs">
       <a href="#audit" data-tab="audit">Audit</a>
       <a href="#digest" data-tab="digest">Digest</a>
+      <a href="#portfolio" data-tab="portfolio">Portfolio</a>
     </nav>
     <div class="tools">
       <div class="lang" id="theme"><button type="button" data-theme="light"></button><button type="button" data-theme="dark"></button></div>
@@ -194,6 +208,12 @@
         <h3 id="digestTileTitle"></h3>
         <p id="digestTileBlurb"></p>
         <div class="tile-foot"><span></span><b id="digestTileOpen"></b></div>
+      </a>
+      <a class="tile" href="#portfolio">
+        <div class="tile-top"><span class="cat"><i></i>Chain MCP</span><span class="cat">09</span></div>
+        <h3 id="portTileTitle"></h3>
+        <p id="portTileBlurb"></p>
+        <div class="tile-foot"><span></span><b id="portTileOpen"></b></div>
       </a>
     </div>
 
@@ -309,6 +329,28 @@
       <div class="scroll"><table><thead><tr id="head1"></tr></thead><tbody id="notable"></tbody></table></div>
     </section>
 
+    <section class="card" data-panel="portfolio">
+      <h2 data-i18n="portForm"></h2>
+      <form id="portForm">
+        <label for="portWallet" data-i18n="walletLabel"></label>
+        <input class="mono" id="portWallet" autocomplete="off" spellcheck="false" value="0x912c9aDe24D44d8922f0866D8Dcb079f1363f647" />
+        <label for="portAsk" data-i18n="portAskLabel"></label>
+        <input id="portAsk" autocomplete="off" spellcheck="true" />
+        <div class="filters" id="portChips"></div>
+        <div class="actions">
+          <button class="btn" id="portGo" type="submit" data-i18n="portBtn"></button>
+        </div>
+      </form>
+      <p class="status" id="portStatus"></p>
+    </section>
+    <section class="card" data-panel="portfolio" id="portOut" hidden>
+      <h2 data-i18n="portReport"></h2>
+      <div id="portStory" class="port-lines"></div>
+      <p class="note" id="portUnread"></p>
+      <div class="scroll"><table><thead><tr id="portHead"></tr></thead><tbody id="portSources"></tbody></table></div>
+      <p class="note" id="portMeta"></p>
+    </section>
+
     <section class="card" data-panel="audit" id="itemsCard" hidden>
       <h2 data-i18n="itemsTitle"></h2>
       <div class="scroll"><table><thead><tr id="head2"></tr></thead><tbody id="items"></tbody></table></div>
@@ -320,7 +362,18 @@
     const I18N = {
       en: {
         title: "Pharos Ledger",
-        lead: "Two read-only tools on Pacific. Pick a card.",
+        lead: "Three read-only tools on Pacific. Pick a card.",
+        portTitle: "Portfolio",
+        portLead: "Ask the wallet a plain question. FaroSwap, Faroo, Harbor Axil, Morpho, TermMax, live Prosper vaults. Other Port dapps stay unread until a Pacific 0x exists.",
+        portTileTitle: "Portfolio assistant",
+        portTileBlurb: "Holdings, FaroSwap V3 LPs, where a token sits, biggest position, yield, approvals.",
+        portForm: "Ask",
+        portAskLabel: "Question",
+        portBtn: "Ask",
+        portBusy: "Reading balances, LPs, vaults and allowances…",
+        portReport: "Answer",
+        portChips: ["What do I hold?", "Where is my USDC?", "What am I earning?", "Any FaroSwap LP?", "Any Morpho vault?", "Any Prosper vault?"],
+        portCols: ["Source", "Contract", "Block", "Call"],
         digestTitle: "Weekly digest",
         digestLead: "Last ~12 hours vs the same hours from 7 days ago. Public page, not a chat bot.",
         digestTileTitle: "Weekly digest",
@@ -376,7 +429,18 @@
       },
       pt: {
         title: "Pharos Ledger",
-        lead: "Duas ferramentas só leitura na Pacific. Escolha um card.",
+        lead: "Três ferramentas só leitura na Pacific. Escolha um card.",
+        portTitle: "Portfólio",
+        portLead: "Pergunta em texto. FaroSwap, Faroo, Harbor Axil, Morpho, TermMax, vaults ao vivo da Prosper. Outros dapps do Port ficam sem leitura até existir 0x da Pacific.",
+        portTileTitle: "Assistente de portfólio",
+        portTileBlurb: "Saldos, LPs FaroSwap V3, onde está um token, maior posição, rendimento, aprovações.",
+        portForm: "Perguntar",
+        portAskLabel: "Pergunta",
+        portBtn: "Perguntar",
+        portBusy: "Lendo saldos, LPs, vaults e allowances…",
+        portReport: "Resposta",
+        portChips: ["Mostra o que eu tenho", "Cadê o USDC?", "Quanto estou ganhando?", "Tem LP na FaroSwap?", "Tem Morpho?", "Tem alguma coisa na Prosper?"],
+        portCols: ["Fonte", "Contrato", "Bloco", "Chamada"],
         digestTitle: "Digest semanal",
         digestLead: "Últimas ~12 horas contra as mesmas horas de 7 dias atrás. Página pública, não um bot de chat.",
         digestTileTitle: "Digest semanal",
@@ -438,6 +502,7 @@
     let lang = localStorage.getItem("pharos-lang") || (navigator.language?.startsWith("pt") ? "pt" : "en");
     let lastReport = null;
     let lastDigest = null;
+    let lastPortfolio = null;
     let scanGen = 0;
     let digestGen = 0;
     let tab = "home";
@@ -445,6 +510,7 @@
     if (savedWallet) {
       $("wallet").value = savedWallet;
       $("digestWallet").value = savedWallet;
+      $("portWallet").value = savedWallet;
     }
     function rememberWallet(addr) {
       const v = String(addr || "").trim();
@@ -452,6 +518,7 @@
       localStorage.setItem("pharos-wallet", v);
       $("wallet").value = v;
       $("digestWallet").value = v;
+      $("portWallet").value = v;
     }
 
     function iso(d) {
@@ -464,25 +531,38 @@
       document.querySelectorAll("[data-i18n]").forEach((el) => (el.textContent = t[el.dataset.i18n] || ""));
       document.querySelectorAll(".lang button[data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === lang));
       paintTheme();
-      $("title").textContent = tab === "digest" ? t.digestTitle : t.title;
-      $("lead").textContent = tab === "digest" ? t.digestLead : t.lead;
+      $("title").textContent = tab === "digest" ? t.digestTitle : tab === "portfolio" ? t.portTitle : t.title;
+      $("lead").textContent = tab === "digest" ? t.digestLead : tab === "portfolio" ? t.portLead : t.lead;
       $("tileTitle").textContent = t.tileTitle;
       $("tileBlurb").textContent = t.tileBlurb;
       $("tileOpen").textContent = t.tileOpen;
       $("digestTileTitle").textContent = t.digestTileTitle;
       $("digestTileBlurb").textContent = t.digestTileBlurb;
       $("digestTileOpen").textContent = t.tileOpen;
+      $("portTileTitle").textContent = t.portTileTitle;
+      $("portTileBlurb").textContent = t.portTileBlurb;
+      $("portTileOpen").textContent = t.tileOpen;
+      $("portChips").innerHTML = t.portChips.map((q) => `<button type="button" class="filter" data-ask="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("");
+      $("portChips").querySelectorAll("[data-ask]").forEach((b) => b.onclick = () => { $("portAsk").value = b.dataset.ask; askPortfolio(); });
+      const askNow = $("portAsk").value;
+      const enIdx = I18N.en.portChips.indexOf(askNow);
+      const ptIdx = I18N.pt.portChips.indexOf(askNow);
+      const chipIdx = enIdx >= 0 ? enIdx : ptIdx;
+      if (chipIdx >= 0) $("portAsk").value = t.portChips[chipIdx];
+      else if (!askNow) $("portAsk").value = t.portChips[0];
       $("foot").innerHTML = t.foot;
       $("head0").innerHTML = t.partyCols.map((c) => `<th>${c}</th>`).join("");
       $("head1").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
       $("head2").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
       $("digestHead").innerHTML = t.cols.map((c) => `<th>${c}</th>`).join("");
+      $("portHead").innerHTML = t.portCols.map((c) => `<th>${c}</th>`).join("");
       if (lastReport && tab === "audit") render(lastReport);
       if (lastDigest && tab === "digest") renderDigest(lastDigest);
+      if (lastPortfolio && tab === "portfolio") renderPortfolio(lastPortfolio);
     }
 
     function showTab(name) {
-      tab = name === "digest" ? "digest" : name === "audit" ? "audit" : "home";
+      tab = name === "digest" ? "digest" : name === "audit" ? "audit" : name === "portfolio" ? "portfolio" : "home";
       document.querySelectorAll("[data-panel]").forEach((el) => {
         el.hidden = el.dataset.panel !== tab;
       });
@@ -886,8 +966,57 @@
       $("digestStatus").className = "status";
       $("digestStatus").textContent = I18N[lang].stopped;
     };
+    function renderPortfolio(data) {
+      lastPortfolio = data;
+      const t = I18N[lang];
+      $("portOut").hidden = false;
+      const story = data.story?.[lang] || data.text || "";
+      const lines = String(story).split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      $("portStory").innerHTML = lines.map((line) => {
+        const soft = /Harbor catalog|Zona |Ember |Cards do Harbor|não invent|will not copy|will not invent|não copio/i.test(line) || line.length > 180;
+        const parts = line.split(" · ").map((s) => s.trim()).filter(Boolean);
+        if (parts.length < 2) return `<div class="port-line${soft ? " soft" : ""}"><div class="port-head">${escapeHtml(line)}</div></div>`;
+        const head = parts[0];
+        const meta = parts.slice(1).map((p) => `<span>${escapeHtml(p)}</span>`).join("");
+        return `<div class="port-line${soft ? " soft" : ""}"><div class="port-head">${escapeHtml(head)}</div><div class="port-meta">${meta}</div></div>`;
+      }).join("") || `<div class="port-line soft"><div class="port-head">${escapeHtml(t.none)}</div></div>`;
+      $("portUnread").textContent = data.unknown && data.protocol
+        ? ((data.unread || []).find((u) => u.id === data.protocol)?.[lang] || "")
+        : "";
+      $("portSources").innerHTML = (data.sources || []).map((s) => `<tr>
+        <td>${escapeHtml(s.label)}</td>
+        <td>${s.contract ? `<a class="addr" href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${shortHex(s.contract)}</a>` : (lang === "pt" ? "nativo" : "native")}</td>
+        <td>${Number(s.block).toLocaleString(lang === "pt" ? "pt-BR" : "en-US")}</td>
+        <td>${escapeHtml(s.method)}</td>
+      </tr>`).join("") || `<tr><td colspan="4">${escapeHtml(t.none)}</td></tr>`;
+      const ms = data.ms != null ? ` · ${(data.ms / 1000).toFixed(1)}s` : "";
+      $("portMeta").textContent = `${data.calls || "Chain MCP"}${ms}`;
+      $("portStatus").textContent = "";
+    }
+
+    async function askPortfolio(e) {
+      e?.preventDefault();
+      const wallet = $("portWallet").value.trim();
+      const ask = $("portAsk").value.trim();
+      rememberWallet(wallet);
+      $("portGo").disabled = true;
+      $("portStatus").className = "status";
+      $("portStatus").textContent = I18N[lang].portBusy;
+      try {
+        const data = await getJson(`/api/portfolio?${new URLSearchParams({ wallet, ask, lang })}`, 2);
+        renderPortfolio(data);
+        history.replaceState(null, "", `#portfolio`);
+      } catch (err) {
+        $("portStatus").className = "status err";
+        $("portStatus").textContent = err.message;
+      } finally {
+        $("portGo").disabled = false;
+      }
+    }
+
     $("form").onsubmit = run;
     $("digestForm").onsubmit = loadDigest;
+    $("portForm").onsubmit = askPortfolio;
     window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
     $("md").onclick = () => download("md");
     $("csv").onclick = () => download("csv");
