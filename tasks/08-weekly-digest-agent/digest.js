@@ -46,12 +46,24 @@ try {
   takeCallLog(client);
   const digest = await buildDigest(client, wallet, { lang });
   console.log(digest.text);
+  const cur = digest.windows.current;
+  const prev = digest.windows.previous;
+  console.log(`Now  ${cur.fromBlock}–${cur.toBlock}  ${cur.fromTime || ""} → ${cur.toTime || ""}`);
+  console.log(`Then ${prev.fromBlock}–${prev.toBlock}  ${prev.fromTime || ""} → ${prev.toTime || ""}`);
+  for (const m of digest.metrics) {
+    const delta = m.change == null ? "new" : `${m.change > 0 ? "+" : ""}${m.change}%`;
+    console.log(`${m.id}  ${m.now} vs ${m.then}  ${delta}`);
+  }
   console.log(`\nTop 3`);
+  if (digest.net?.length) {
+    console.log(`Net  ${digest.net.map((r) => `${r.amount} ${r.symbol}`).join(", ")}`);
+  }
   for (const row of digest.top) {
     const detail = (row.legs || []).map((l) => `${l.direction} ${l.amount} ${l.symbol}`).join(", ");
-    console.log(`- ${row.category} ${detail} ${row.txUrl}`);
+    console.log(`- ${row.category} ${detail}${row.via ? ` via ${row.via}` : ""} ${row.txUrl}`);
   }
-  console.log(`\nChain MCP: ${summarizeCalls(takeCallLog(client))}`);
+  console.log(`\n${digest.note}`);
+  console.log(`Chain MCP: ${summarizeCalls(takeCallLog(client))}`);
 } catch (e) {
   console.error(`Error: ${e.message}`);
   process.exit(e.status === 400 ? 2 : 1);
