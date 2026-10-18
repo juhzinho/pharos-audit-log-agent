@@ -127,6 +127,32 @@ test("WPROS keeps 18 decimals after the page round-trip", () => {
   assert.equal(again.view.outgoing[0].amount, "43");
 });
 
+test("audit reading uses real plurals and USDC totals keep 6 decimals", () => {
+  const usdc = 2_500_000n;
+  const report = composeReport({
+    wallet: WALLET,
+    range: { from: "2026-10-17", to: "2026-10-17", days: 1 },
+    fromBlock: 1,
+    toBlock: 2,
+    headBlock: 2,
+    items: [{
+      category: "in",
+      block: 2,
+      tx: "0x" + "cd".repeat(32),
+      legs: [{ symbol: "USDC", direction: "in", value: usdc, decimals: 6, from: OTHER, to: WALLET }],
+      approvals: [],
+    }],
+    lang: "pt",
+  });
+  assert.doesNotMatch(report.brief.paragraphs.pt[0], /\(s\)/);
+  assert.doesNotMatch(report.brief.paragraphs.en[0], /\(s\)/);
+  assert.match(report.brief.paragraphs.pt[0], /1 evento/);
+  assert.equal(report.view.incoming[0].decimals, 6);
+  assert.equal(report.view.incoming[0].raw, "2500000");
+  assert.match(report.text, /bloco/);
+  assert.doesNotMatch(report.text, /\] block /);
+});
+
 test("csv includes one row per leg", () => {
   const items = categorize(WALLET, new Map([["USDC", {
     token: PACIFIC.USDC,
